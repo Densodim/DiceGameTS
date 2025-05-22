@@ -86,7 +86,7 @@ class Game {
     }
     async getPlayerChoice() {
         const choice = await this.getUserInput("Choose a number between 0 and 5: ");
-        return parseInt(choice);
+        return Number(choice);
     }
     determineWinner(firstPlayer, secondPlayer, computerNumber, playerChoice) {
         const result = (computerNumber + playerChoice) % 6;
@@ -121,6 +121,5 @@ class Game {
         console.log("Usage: node dice.js <dice1> <dice2> <dice3> ...");
     }
 }
-// Example usage
 const game = new Game();
 game.start(process.argv.slice(2));

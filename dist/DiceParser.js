@@ -18,7 +18,11 @@ export class DiceParser {
         return arg.split(",");
     }
     validateValues(values, arg) {
-        if (values.length !== 6 || values.some((v) => isNaN(Number(v)))) {
+        if (values.length !== 6 ||
+            values.some((v) => {
+                const num = Number(v);
+                return isNaN(num) || !Number.isInteger(num);
+            })) {
             throw new Error(`The wrong bone format: ${arg}. 6 numbers are expected, separated by commas.`);
         }
     }
