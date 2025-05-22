@@ -11,8 +11,8 @@ export class DiceParser implements IDiceParser {
   }
 
   private validateDiceCount(args: string[]): void {
-    if (args.length < 3) {
-      throw new Error("At least 3 bones are required for the game.");
+    if (args.length !== 3) {
+      throw new Error("The game requires exactly 3 dice.");
     }
   }
 
