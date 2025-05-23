@@ -10,9 +10,7 @@ export class ProbabilityCalculator implements IProbabilityCalculator {
 
     dice.forEach((dice1, i) => {
       dice.forEach((dice2, j) => {
-        if (i !== j) {
-          probabilities[i][j] = this.calculateWinProbability(dice1, dice2);
-        }
+        probabilities[i][j] = this.calculateWinProbability(dice1, dice2);
       });
     });
 

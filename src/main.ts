@@ -117,6 +117,7 @@ class Game implements IGame {
     const playerChoice = await this.getPlayerChoice();
 
     if (this.verifier.verifyHmac(computerNumber, key, computerHmac)) {
+      console.log(`Computer's number was: ${computerNumber}`);
       this.determineWinner(
         firstPlayer,
         secondPlayer,
@@ -131,7 +132,7 @@ class Game implements IGame {
   private generateComputerNumber(): [number, string, Buffer] {
     const newKey = this.randomGen.generateSecureKey();
     const [number, hmac] = this.randomGen.generateRandomNumber(5, newKey);
-    console.log(`Computer generated random number: ${number}, HMAC: ${hmac}`);
+    console.log(`Computer generated HMAC: ${hmac}`);
     return [number, hmac, newKey];
   }
 
