@@ -26,4 +26,7 @@ export class DiceParser {
             throw new Error(`The wrong bone format: ${arg}. 6 numbers are expected, separated by commas.`);
         }
     }
+    formatDiceValues(values) {
+        return values.join(",");
+    }
 }
