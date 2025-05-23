@@ -38,6 +38,7 @@ class Game {
         return dice;
     }
     async determinePlayerOrder() {
+        console.log("Let's determine who makes the first move.");
         const key = this.randomGen.generateSecureKey();
         const [randomNumber, hmacValue] = this.randomGen.generateRandomNumber(1, key);
         console.log(`I selected a random value in the range 0..1 (HMAC=${hmacValue}).`);
@@ -51,10 +52,11 @@ class Game {
             console.log("Exiting the game.");
             process.exit(0);
         }
+        console.log(`My selection: ${randomNumber} (KEY=${key.toString("hex")}).`);
         const [firstPlayer, secondPlayer] = userInput === "0"
-            ? [this.players[0], this.players[1]]
-            : [this.players[1], this.players[0]];
-        console.log(`${firstPlayer.getName()} goes first!`);
+            ? [this.players[1], this.players[0]]
+            : [this.players[0], this.players[1]];
+        console.log(`${firstPlayer.getName() === "Computer" ? "I" : "You"} make the first move.`);
         return [firstPlayer, secondPlayer];
     }
     async playRound(firstPlayer, secondPlayer, dice) {
@@ -62,50 +64,136 @@ class Game {
         await this.playDiceRoll(firstPlayer, secondPlayer);
     }
     async chooseDice(firstPlayer, secondPlayer, dice) {
-        await firstPlayer.chooseDice(dice);
-        console.log(`${firstPlayer.getName()} chose: ${firstPlayer.getDice()?.getValues()}`);
-        const availableDice = dice.filter((die) => die !== firstPlayer.getDice());
-        secondPlayer.getDice = () => availableDice[Math.floor(Math.random() * availableDice.length)];
-        console.log(`${secondPlayer.getName()} chose: ${secondPlayer.getDice()?.getValues()}`);
-    }
-    async playDiceRoll(firstPlayer, secondPlayer) {
-        const [computerNumber, computerHmac, key] = this.generateComputerNumber();
-        const playerChoice = await this.getPlayerChoice();
-        if (this.verifier.verifyHmac(computerNumber, key, computerHmac)) {
-            this.determineWinner(firstPlayer, secondPlayer, computerNumber, playerChoice);
+        if (firstPlayer.getName() === "Computer") {
+            const computerChoice = Math.floor(Math.random() * dice.length);
+            firstPlayer.getDice = () => dice[computerChoice];
+            console.log(`I make the first move and choose the [${dice[computerChoice].getValues()}] dice.`);
+            console.log("Choose your dice:");
+            dice.forEach((die, i) => {
+                if (die !== firstPlayer.getDice()) {
+                    console.log(`${i} - ${die.getValues()}`);
+                }
+            });
+            console.log("X - exit");
+            console.log("? - help");
+            const userChoice = await this.getUserInput("Your selection: ");
+            if (userChoice === "X") {
+                console.log("Exiting the game.");
+                process.exit(0);
+            }
+            secondPlayer.getDice = () => dice[Number(userChoice)];
+            console.log(`You choose the [${secondPlayer.getDice()?.getValues()}] dice.`);
         }
         else {
-            console.log("HMAC verification failed. Possible tampering detected.");
+            console.log("Choose your dice:");
+            dice.forEach((die, i) => {
+                console.log(`${i} - ${die.getValues()}`);
+            });
+            console.log("X - exit");
+            console.log("? - help");
+            const userChoice = await this.getUserInput("Your selection: ");
+            if (userChoice === "X") {
+                console.log("Exiting the game.");
+                process.exit(0);
+            }
+            firstPlayer.getDice = () => dice[Number(userChoice)];
+            console.log(`You choose the [${firstPlayer.getDice()?.getValues()}] dice.`);
+            const availableDice = dice.filter((die) => die !== firstPlayer.getDice());
+            const computerChoice = Math.floor(Math.random() * availableDice.length);
+            secondPlayer.getDice = () => availableDice[computerChoice];
+            console.log(`I choose the [${secondPlayer.getDice()?.getValues()}] dice.`);
+        }
+    }
+    async playDiceRoll(firstPlayer, secondPlayer) {
+        if (firstPlayer.getName() === "Computer") {
+            const [computerNumber, computerHmac, key] = this.generateComputerNumber();
+            const playerChoice = await this.getPlayerChoice();
+            if (this.verifier.verifyHmac(computerNumber, key, computerHmac)) {
+                console.log(`My number is ${computerNumber} (KEY=${key.toString("hex")}).`);
+                const result = (computerNumber + playerChoice) % 6;
+                console.log(`The fair number generation result is ${computerNumber} + ${playerChoice} = ${result} (mod 6).`);
+                const computerRoll = firstPlayer.getDice()?.roll();
+                console.log(`My roll result is ${computerRoll}.`);
+                // Generate new random number for player's roll
+                const [playerNumber, playerHmac, playerKey,] = this.generateComputerNumber();
+                const playerSecondChoice = await this.getPlayerChoice();
+                if (this.verifier.verifyHmac(playerNumber, playerKey, playerHmac)) {
+                    console.log(`My number is ${playerNumber} (KEY=${playerKey.toString("hex")}).`);
+                    const playerResult = (playerNumber + playerSecondChoice) % 6;
+                    console.log(`The fair number generation result is ${playerNumber} + ${playerSecondChoice} = ${playerResult} (mod 6).`);
+                    const playerRoll = secondPlayer.getDice()?.roll();
+                    console.log(`Your roll result is ${playerRoll}.`);
+                    if (computerRoll !== undefined && playerRoll !== undefined) {
+                        if (computerRoll > playerRoll) {
+                            console.log(`I win (${computerRoll} > ${playerRoll})!`);
+                        }
+                        else if (computerRoll < playerRoll) {
+                            console.log(`You win (${playerRoll} > ${computerRoll})!`);
+                        }
+                        else {
+                            console.log("It's a tie!");
+                        }
+                        process.exit(0);
+                    }
+                }
+            }
+        }
+        else {
+            const [playerNumber, playerHmac, playerKey,] = this.generateComputerNumber();
+            const playerChoice = await this.getPlayerChoice();
+            if (this.verifier.verifyHmac(playerNumber, playerKey, playerHmac)) {
+                console.log(`My number is ${playerNumber} (KEY=${playerKey.toString("hex")}).`);
+                const result = (playerNumber + playerChoice) % 6;
+                console.log(`The fair number generation result is ${playerNumber} + ${playerChoice} = ${result} (mod 6).`);
+                const playerRoll = firstPlayer.getDice()?.roll();
+                console.log(`Your roll result is ${playerRoll}.`);
+                // Generate new random number for computer's roll
+                const [computerNumber, computerHmac, computerKey,] = this.generateComputerNumber();
+                const computerChoice = await this.getPlayerChoice();
+                if (this.verifier.verifyHmac(computerNumber, computerKey, computerHmac)) {
+                    console.log(`My number is ${computerNumber} (KEY=${computerKey.toString("hex")}).`);
+                    const computerResult = (computerNumber + computerChoice) % 6;
+                    console.log(`The fair number generation result is ${computerNumber} + ${computerChoice} = ${computerResult} (mod 6).`);
+                    const computerRoll = secondPlayer.getDice()?.roll();
+                    console.log(`My roll result is ${computerRoll}.`);
+                    if (playerRoll !== undefined && computerRoll !== undefined) {
+                        if (playerRoll > computerRoll) {
+                            console.log(`You win (${playerRoll} > ${computerRoll})!`);
+                        }
+                        else if (playerRoll < computerRoll) {
+                            console.log(`I win (${computerRoll} > ${playerRoll})!`);
+                        }
+                        else {
+                            console.log("It's a tie!");
+                        }
+                        process.exit(0);
+                    }
+                }
+            }
         }
     }
     generateComputerNumber() {
         const newKey = this.randomGen.generateSecureKey();
         const [number, hmac] = this.randomGen.generateRandomNumber(5, newKey);
-        console.log(`Computer generated random number: ${number}, HMAC: ${hmac}`);
+        console.log(`I selected a random value in the range 0..5 (HMAC=${hmac}).`);
+        console.log("Add your number modulo 6.");
+        console.log("0 - 0");
+        console.log("1 - 1");
+        console.log("2 - 2");
+        console.log("3 - 3");
+        console.log("4 - 4");
+        console.log("5 - 5");
+        console.log("X - exit");
+        console.log("? - help");
         return [number, hmac, newKey];
     }
     async getPlayerChoice() {
-        const choice = await this.getUserInput("Choose a number between 0 and 5: ");
-        return Number(choice);
-    }
-    determineWinner(firstPlayer, secondPlayer, computerNumber, playerChoice) {
-        const result = (computerNumber + playerChoice) % 6;
-        console.log(`Result of (computer number + player choice) % 6 = ${result}`);
-        const playerRoll = firstPlayer.getDice()?.roll();
-        const computerRoll = secondPlayer.getDice()?.roll();
-        console.log(`${firstPlayer.getName()} rolled: ${playerRoll}`);
-        console.log(`${secondPlayer.getName()} rolled: ${computerRoll}`);
-        if (playerRoll && computerRoll) {
-            if (playerRoll > computerRoll) {
-                console.log(`${firstPlayer.getName()} wins!`);
-            }
-            else if (playerRoll < computerRoll) {
-                console.log(`${secondPlayer.getName()} wins!`);
-            }
-            else {
-                console.log("It's a tie!");
-            }
+        const choice = await this.getUserInput("Your selection: ");
+        if (choice === "X") {
+            console.log("Exiting the game.");
+            process.exit(0);
         }
+        return Number(choice);
     }
     async getUserInput(prompt) {
         const rl = readline.createInterface({

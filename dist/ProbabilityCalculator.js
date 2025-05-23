@@ -3,9 +3,7 @@ export class ProbabilityCalculator {
         const probabilities = this.createEmptyMatrix(dice.length);
         dice.forEach((dice1, i) => {
             dice.forEach((dice2, j) => {
-                if (i !== j) {
-                    probabilities[i][j] = this.calculateWinProbability(dice1, dice2);
-                }
+                probabilities[i][j] = this.calculateWinProbability(dice1, dice2);
             });
         });
         return probabilities;
